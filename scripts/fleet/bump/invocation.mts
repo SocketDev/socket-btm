@@ -10,7 +10,7 @@
  *   Split out of bump.mts, which was past the 1000-line hard cap.
  */
 
-import { parseArgs } from '@socketsecurity/lib-stable/argv/parse'
+import { parseArgs } from '@socketsecurity/lib-stable/exe/argv/parse'
 
 // Every flag `main` accepts. Kept beside the parseArgs options it mirrors so a
 // new flag is added in both places, and `unrecognizedFlags` can refuse the rest.
